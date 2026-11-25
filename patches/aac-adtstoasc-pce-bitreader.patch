@@ -1,0 +1,23 @@
+aac_adtstoasc: check the bit reader initialization before the PCE (CVE-2026-125225)
+
+For an ADTS frame without a channel configuration the filter read the PCE through
+a bit reader whose initialization it did not check; a packet too large for the
+bit count left the reader on a NULL buffer.
+
+Backport of FFmpeg master 3b1cbb5e0f66b85d15f1d3527436520b3f4711ec (PR 25569, merged 2026-11-03), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/bsf/aac_adtstoasc.c b/libavcodec/bsf/aac_adtstoasc.c
+--- a/libavcodec/bsf/aac_adtstoasc.c
++++ b/libavcodec/bsf/aac_adtstoasc.c
+@@ -79,7 +79,9 @@ static int aac_adtstoasc_filter(AVBSFContext *bsfc, AVPacket *pkt)
+ 
+         if (!hdr.chan_config) {
+             GetBitContext gb;
+-            init_get_bits(&gb, pkt->data, pkt->size * 8);
++            ret = init_get_bits8(&gb, pkt->data, pkt->size);
++            if (ret < 0)
++                goto fail;
+             if (get_bits(&gb, 3) != 5) {
+                 avpriv_report_missing_feature(bsfc,
+                                               "PCE-based channel configuration "

@@ -1,0 +1,31 @@
+hdr_dynamic_metadata: write color saturation outside the tone mapping block (CVE-2026-107676)
+
+av_dynamic_hdr_plus_to_t35() wrote color_saturation_mapping_flag and
+color_saturation_weight only when tone_mapping_flag was set, while the size
+calculation and the parser treat them as unconditional per window. With
+tone mapping off and saturation mapping on, fewer bits than allocated were
+written and the returned buffer carried uninitialised heap bytes.
+
+Backport of FFmpeg master 2c2f6e96e31795ae95a8f8323a493ffbc493111f (PR 24590),
+not on release/9.0 as of d4070a14ce.
+
+diff --git a/libavutil/hdr_dynamic_metadata.c b/libavutil/hdr_dynamic_metadata.c
+index 9c89625..8055f0e 100644
+--- a/libavutil/hdr_dynamic_metadata.c
++++ b/libavutil/hdr_dynamic_metadata.c
+@@ -379,11 +379,11 @@ int av_dynamic_hdr_plus_to_t35(const AVDynamicHDRPlus *s, uint8_t **data, size_t
+             for (int i = 0; i < s->params[w].num_bezier_curve_anchors; i++)
+                 put_bits(pb, 10, s->params[w].bezier_curve_anchors[i].num * bezier_anchor_den /
+                     s->params[w].bezier_curve_anchors[i].den);
+-            put_bits(pb, 1, s->params[w].color_saturation_mapping_flag);
+-            if (s->params[w].color_saturation_mapping_flag)
+-                put_bits(pb, 6, s->params[w].color_saturation_weight.num * saturation_weight_den /
+-                    s->params[w].color_saturation_weight.den);
+         }
++        put_bits(pb, 1, s->params[w].color_saturation_mapping_flag);
++        if (s->params[w].color_saturation_mapping_flag)
++            put_bits(pb, 6, s->params[w].color_saturation_weight.num * saturation_weight_den /
++                s->params[w].color_saturation_weight.den);
+     }
+ 
+     flush_put_bits(pb);

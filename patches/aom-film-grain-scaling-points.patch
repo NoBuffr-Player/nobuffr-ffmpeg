@@ -1,0 +1,30 @@
+aom_film_grain: reject scaling points with a repeated x value (CVE-2026-125185)
+
+AFGS1 film grain parameters (HEVC and AV1) with two scaling points at the same x
+value led to a division by zero in the scaling function. The patch rejects them,
+as the AV1 specification requires strictly increasing points.
+
+Backport of FFmpeg master b8daf520dd03f6139aa053acb768f3c4594599d9 (PR 25572, merged 2026-11-03), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/aom_film_grain.c b/libavcodec/aom_film_grain.c
+--- a/libavcodec/aom_film_grain.c
++++ b/libavcodec/aom_film_grain.c
+@@ -247,7 +247,7 @@ int ff_aom_parse_film_grain_sets(AVFilmGrainAFGS1Params *s,
+                 bits_scaling = get_bits(gb, 2) + 5;
+                 for (i = 0; i < aom->num_y_points; i++) {
+                     y_value += get_bits(gb, bits_inc);
+-                    if (y_value > UINT8_MAX)
++                    if (y_value > UINT8_MAX || i && y_value == aom->y_points[i - 1][0])
+                         goto error;
+                     aom->y_points[i][0] = y_value;
+                     aom->y_points[i][1] = get_bits(gb, bits_scaling);
+@@ -298,7 +298,7 @@ int ff_aom_parse_film_grain_sets(AVFilmGrainAFGS1Params *s,
+                         uv_offset = get_bits(gb, 8);
+                         for (i = 0; i < aom->num_uv_points[uv]; i++) {
+                             uv_value += get_bits(gb, bits_inc);
+-                            if (uv_value > UINT8_MAX)
++                            if (uv_value > UINT8_MAX || i && uv_value == aom->uv_points[uv][i - 1][0])
+                                 goto error;
+                             aom->uv_points[uv][i][0] = uv_value;
+                             aom->uv_points[uv][i][1] = get_bits(gb, bits_scaling) + uv_offset;

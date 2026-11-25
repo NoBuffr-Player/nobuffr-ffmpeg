@@ -1,0 +1,32 @@
+encode: reject video frames that do not match the encoder (CVE-2026-125204, -125212, -125218, -125235, -125260)
+
+avcodec_send_frame() accepted a video frame of any size or pixel format, and
+several video encoders then read past the frame. The check rejects a frame whose
+size or format differs from the encoder's unless the encoder declares
+AV_CODEC_CAP_PARAM_CHANGE. Only video encoders reach it, and this build has none
+(its encoders are audio only), so it changes nothing here; it is carried so the
+five CVEs it fixes are closed by source, not by argument.
+
+Backport of FFmpeg master 254cebc4e8e1358ffcf7ba6fc13bcc4a98db80de (2026-10-20), 9b99973b2bbecee0b7e1e57035b95498b42f54a6 (PR 25682, merged 2026-11-05), not in n9.0.2.
+Ported by hand: n9.0.2 has neither commit; the patch adds the check of the first
+with the != comparison of the second, which is what master has.
+
+diff --git a/libavcodec/encode.c b/libavcodec/encode.c
+--- a/libavcodec/encode.c
++++ b/libavcodec/encode.c
+@@ -517,6 +517,15 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
+                 }
+             }
+         }
++    } else if (!(avctx->codec->capabilities & AV_CODEC_CAP_PARAM_CHANGE)) {
++        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(src->format);
++
++        if (!(desc && desc->flags & AV_PIX_FMT_FLAG_HWACCEL) &&
++            (src->format != avctx->pix_fmt ||
++             src->width != avctx->width || src->height != avctx->height)) {
++            av_log(avctx, AV_LOG_ERROR, "Frame size or pixel format does not match the encoder\n");
++            return AVERROR(EINVAL);
++        }
+     }
+ 
+     ret = av_frame_ref(dst, src);

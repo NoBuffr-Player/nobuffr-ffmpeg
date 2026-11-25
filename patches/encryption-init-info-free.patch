@@ -1,0 +1,39 @@
+encryption_info: free the init info list without recursion (CVE-2026-107678)
+
+av_encryption_init_info_free() freed info->next by calling itself, one stack
+frame per entry. mov.c chains one entry per pssh box, so a file with enough
+pssh boxes exhausted the stack when the list was freed. The patch walks the
+list in a loop.
+
+Backport of FFmpeg master 969c7eb091989a664cb7bf66a1f02051cc46cb52 (PR 24593),
+not on release/9.0 as of d4070a14ce. The PR's other two commits (d1434518fb,
+71403a21b0) replace mov.c's O(n^2) pssh append with a new public avutil
+function; they fix a timeout, not the stack exhaustion, and are not included.
+
+diff --git a/libavutil/encryption_info.c b/libavutil/encryption_info.c
+index a3eb955..6fc3e33 100644
+--- a/libavutil/encryption_info.c
++++ b/libavutil/encryption_info.c
+@@ -218,16 +218,19 @@ AVEncryptionInitInfo *av_encryption_init_info_alloc(
+ 
+ void av_encryption_init_info_free(AVEncryptionInitInfo *info)
+ {
+-    uint32_t i;
+-    if (info) {
++    while (info) {
++        AVEncryptionInitInfo *next = info->next;
++        uint32_t i;
++
+         for (i = 0; i < info->num_key_ids; i++) {
+             av_free(info->key_ids[i]);
+         }
+-        av_encryption_init_info_free(info->next);
+         av_free(info->system_id);
+         av_free(info->key_ids);
+         av_free(info->data);
+         av_free(info);
++
++        info = next;
+     }
+ }
+ 

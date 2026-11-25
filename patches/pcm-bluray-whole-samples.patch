@@ -1,0 +1,21 @@
+pcm-bluray: copy only whole samples on big-endian hosts (CVE-2026-125214)
+
+The big-endian S16 path copied buf_size bytes into a buffer sized for whole
+samples. The code is under HAVE_BIGENDIAN, so the Apple slices (all little-endian)
+do not compile it; the patch is carried so the source matches master.
+
+Backport of FFmpeg master a61b32df3fd67f76c1c8c7ea51be2a66efb0f945 (PR 25337, merged 2026-11-05), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/pcm-bluray.c b/libavcodec/pcm-bluray.c
+--- a/libavcodec/pcm-bluray.c
++++ b/libavcodec/pcm-bluray.c
+@@ -167,7 +167,7 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx, AVFrame *frame,
+             samples *= num_source_channels;
+             if (AV_SAMPLE_FMT_S16 == avctx->sample_fmt) {
+ #if HAVE_BIGENDIAN
+-                bytestream2_get_buffer(&gb, (uint8_t*)dst16, buf_size);
++                bytestream2_get_buffer(&gb, (uint8_t*)dst16, samples * 2);
+ #else
+                 do {
+                     *dst16++ = bytestream2_get_be16u(&gb);

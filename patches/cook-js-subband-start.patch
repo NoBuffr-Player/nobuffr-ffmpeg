@@ -1,0 +1,26 @@
+cook: reject js_subband_start beyond subbands (CVE-2026-125182)
+
+A joint-stereo subpacket whose js_subband_start is larger than its subband count
+made the decoder read outside its tables in the joint-stereo decode. The patch
+rejects such extradata when the decoder opens.
+
+Backport of FFmpeg master 7145d13201c9f9c5253f40295714faa4f4ada1a0 (PR 24763, merged 2026-10-04), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/cook.c b/libavcodec/cook.c
+--- a/libavcodec/cook.c
++++ b/libavcodec/cook.c
+@@ -1218,6 +1218,13 @@ static av_cold int cook_decode_init(AVCodecContext *avctx)
+             return AVERROR_PATCHWELCOME;
+         }
+ 
++        if (q->subpacket[s].joint_stereo &&
++            q->subpacket[s].js_subband_start > q->subpacket[s].subbands) {
++            av_log(avctx, AV_LOG_ERROR, "js_subband_start %d > subbands %d\n",
++                   q->subpacket[s].js_subband_start, q->subpacket[s].subbands);
++            return AVERROR_INVALIDDATA;
++        }
++
+         if ((q->subpacket[s].js_vlc_bits > 6) ||
+             (q->subpacket[s].js_vlc_bits < 2 * q->subpacket[s].joint_stereo)) {
+             av_log(avctx, AV_LOG_ERROR, "js_vlc_bits = %d, only >= %d and <= 6 allowed!\n",

@@ -1,0 +1,59 @@
+hdr_dynamic_metadata: reject HDR10+ counts above the array bounds
+
+av_dynamic_hdr_plus_to_t35() used the caller's window, percentile, bezier
+anchor and peak luminance counts as loop bounds over fixed-size arrays, so a
+count just above an array length read out of bounds. The serializer now
+returns AVERROR(EINVAL) for such counts, gated like the reads they guard.
+No API change: the function already returns an error code.
+
+Backport of the library part of FFmpeg master
+182bb23bf84869e8487a5b5c6253fc9e9c26adfc (its FATE cases are not included),
+not on release/9.0 as of d4070a14ce. Applies on top of
+hdr10plus-t35-saturation.patch.
+
+diff --git a/libavutil/hdr_dynamic_metadata.c b/libavutil/hdr_dynamic_metadata.c
+index 9b46499343..d52470da6d 100644
+--- a/libavutil/hdr_dynamic_metadata.c
++++ b/libavutil/hdr_dynamic_metadata.c
+@@ -244,6 +244,41 @@ int av_dynamic_hdr_plus_to_t35(const AVDynamicHDRPlus *s, uint8_t **data, size_t
+         return AVERROR(EINVAL);
+     if ((!data || *data) && !size)
+        return AVERROR(EINVAL);
++    /* The caps put the payload at exactly 907 bytes; the assert cannot fire. */
++    if (s->num_windows > FF_ARRAY_ELEMS(s->params))
++        return AVERROR(EINVAL);
++
++    for (int w = 0; w < s->num_windows; w++) {
++        const AVHDRPlusColorTransformParams *p = &s->params[w];
++
++        if (p->num_distribution_maxrgb_percentiles >
++            FF_ARRAY_ELEMS(p->distribution_maxrgb))
++            return AVERROR(EINVAL);
++
++        /* The anchors are only read while tone mapping is enabled. */
++        if (p->tone_mapping_flag &&
++            p->num_bezier_curve_anchors >
++            FF_ARRAY_ELEMS(p->bezier_curve_anchors))
++            return AVERROR(EINVAL);
++    }
++
++    /* The peak-luminance pairs use a row count and a column count, and are
++     * only read when their flag is set, so check them the same way. */
++    if (s->targeted_system_display_actual_peak_luminance_flag) {
++        if (s->num_rows_targeted_system_display_actual_peak_luminance >
++            FF_ARRAY_ELEMS(s->targeted_system_display_actual_peak_luminance) ||
++            s->num_cols_targeted_system_display_actual_peak_luminance >
++            FF_ARRAY_ELEMS(s->targeted_system_display_actual_peak_luminance[0]))
++            return AVERROR(EINVAL);
++    }
++
++    if (s->mastering_display_actual_peak_luminance_flag) {
++        if (s->num_rows_mastering_display_actual_peak_luminance >
++            FF_ARRAY_ELEMS(s->mastering_display_actual_peak_luminance) ||
++            s->num_cols_mastering_display_actual_peak_luminance >
++            FF_ARRAY_ELEMS(s->mastering_display_actual_peak_luminance[0]))
++            return AVERROR(EINVAL);
++    }
+ 
+     /**
+      * Buffer size per CTA-861-H p.253-254:

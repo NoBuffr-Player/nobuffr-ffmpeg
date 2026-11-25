@@ -1,0 +1,26 @@
+avstring: return a copy when av_strireplace() is given an empty search string (CVE-2026-107677)
+
+av_stristr() returns the haystack unchanged for an empty needle, so with an
+empty 'from' av_strireplace() never advanced and looped forever, growing its
+buffer when 'to' was non-empty. The CVE is filed against the dash demuxer,
+which this build does not compile, but the function is exported from
+libavutil, which we ship, so a host calling it directly could still hit it.
+
+Backport of the libavutil part of FFmpeg master
+ed27bfcbbbc0872c0195eaf4dd2c0c93b9f1778e (PR 24592), not on release/9.0 as of
+d4070a14ce.
+
+diff --git a/libavutil/avstring.c b/libavutil/avstring.c
+index 1487297cba..9b81da33bf 100644
+--- a/libavutil/avstring.c
++++ b/libavutil/avstring.c
+@@ -234,6 +234,9 @@ char *av_strireplace(const char *str, const char *from, const char *to)
+     size_t tolen = strlen(to), fromlen = strlen(from);
+     AVBPrint pbuf;
+ 
++    if (!fromlen)
++        return av_strdup(str);
++
+     av_bprint_init(&pbuf, 1, AV_BPRINT_SIZE_UNLIMITED);
+     while ((pstr2 = av_stristr(pstr, from))) {
+         av_bprint_append_data(&pbuf, pstr, pstr2 - pstr);

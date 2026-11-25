@@ -1,0 +1,48 @@
+vc1dec: free the slice buffer when init_get_bits8() fails (CVE-2026-125199)
+
+vc1_decode_frame() leaked the slice buffer it had just allocated when the bit
+reader for that slice could not be set up, so a crafted stream leaked memory on
+every packet.
+
+Backport of FFmpeg master afdc555aace698b88c86d3f33a7773a6c8ba2897 (PR 25718, merged 2026-11-05), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/vc1dec.c b/libavcodec/vc1dec.c
+--- a/libavcodec/vc1dec.c
++++ b/libavcodec/vc1dec.c
+@@ -893,8 +893,10 @@ static int vc1_decode_frame(AVCodecContext *avctx, AVFrame *pict,
+                     buf_size3 = v->vc1dsp.vc1_unescape_buffer(start + 4, size,
+                                                               slices[n_slices].buf);
+                     ret = init_get_bits8(&slices[n_slices].gb, slices[n_slices].buf, buf_size3);
+-                    if (ret < 0)
++                    if (ret < 0) {
++                        av_freep(&slices[n_slices].buf);
+                         goto err;
++                    }
+                     slices[n_slices].mby_start = avctx->coded_height + 31 >> 5;
+                     slices[n_slices].rawbuf = start;
+                     slices[n_slices].raw_size = size + 4;
+@@ -926,8 +928,10 @@ static int vc1_decode_frame(AVCodecContext *avctx, AVFrame *pict,
+                     buf_size3 = v->vc1dsp.vc1_unescape_buffer(start + 4, size,
+                                                               slices[n_slices].buf);
+                     ret = init_get_bits8(&slices[n_slices].gb, slices[n_slices].buf, buf_size3);
+-                    if (ret < 0)
++                    if (ret < 0) {
++                        av_freep(&slices[n_slices].buf);
+                         goto err;
++                    }
+                     slices[n_slices].mby_start = get_bits(&slices[n_slices].gb, 9);
+                     slices[n_slices].rawbuf = start;
+                     slices[n_slices].raw_size = size + 4;
+@@ -961,8 +965,10 @@ static int vc1_decode_frame(AVCodecContext *avctx, AVFrame *pict,
+                 }
+                 buf_size3 = v->vc1dsp.vc1_unescape_buffer(divider + 4, buf + buf_size - divider - 4, slices[n_slices].buf);
+                 ret = init_get_bits8(&slices[n_slices].gb, slices[n_slices].buf, buf_size3);
+-                if (ret < 0)
++                if (ret < 0) {
++                    av_freep(&slices[n_slices].buf);
+                     goto err;
++                }
+                 slices[n_slices].mby_start = s->mb_height + 1 >> 1;
+                 slices[n_slices].rawbuf = divider;
+                 slices[n_slices].raw_size = buf + buf_size - divider;

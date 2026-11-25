@@ -1,0 +1,25 @@
+mpegaudiodec: fail on packets too large for the bit reader (CVE-2026-125072)
+
+mp_decode_frame() set up its bit reader with init_get_bits() and a bit count of
+(buf_size - HEADER_SIZE) * 8. A packet too large for that count left the reader
+with a NULL buffer that the layer decoders then read through. The patch uses
+init_get_bits8() and returns its error.
+
+Backport of FFmpeg master 0b007e0634de5b4424b9993c95a6c1c50de0115b (PR 25696, merged 2026-11-03), not in n9.0.2.
+Ported by hand: n9.0.2 reads s->error_protection where master reads
+s->hdr.error_protection; the change itself is the same three lines.
+
+diff --git a/libavcodec/mpegaudiodec_template.c b/libavcodec/mpegaudiodec_template.c
+--- a/libavcodec/mpegaudiodec_template.c
++++ b/libavcodec/mpegaudiodec_template.c
+@@ -1474,7 +1474,9 @@ static int mp_decode_frame(MPADecodeContext *s, OUT_INT **samples,
+     int i, nb_frames, ch, ret;
+     OUT_INT *samples_ptr;
+ 
+-    init_get_bits(&s->gb, buf + HEADER_SIZE, (buf_size - HEADER_SIZE) * 8);
++    ret = init_get_bits8(&s->gb, buf + HEADER_SIZE, buf_size - HEADER_SIZE);
++    if (ret < 0)
++        return ret;
+     if (s->error_protection)
+         s->crc = get_bits(&s->gb, 16);
+ 

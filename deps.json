@@ -1,0 +1,368 @@
+{
+  "comment": "Source of truth for the third-party code bundled in the xcframeworks. Scripts/cve-check.sh reads it and fails when a version here differs from the pin in build.sh or build-libass.sh, or when an ignored_vulns entry names a patch file that is not in patches/. label and commit (optional) record a pin that is a commit on a stable branch rather than a release tag: version stays the release the base derives from, which is what OSV and the newer-release check are asked about, and commit must equal commit_variable in source_file. line = which minor/major line counts as 'newer': any, major (same major) or minor (same major.minor). tag_filter selects stable release tags in the upstream git repository. tag_template turns the pinned version into its upstream tag: {v} is the version, {v_dashed} the version with dots replaced by dashes (default {v}). Triage of an OSV vulnerability is fail-closed. It is informational only when (1) its id is in ignored_vulns (fixed by a patch of ours: reason plus the patch files, which must exist), (2) its id is in not_built_vulns (reason names the configure flag or build setting that leaves the code out), or (3) every source file path found in its structured data (affected[].ecosystem_specific, affected[].database_specific, and the /blob/<tag>/<path> reference URLs) matches a not_built regex in paths. The advisory text is never matched. Everything else is reported as VULN and fails the run.",
+  "dependencies": [
+    {
+      "name": "FFmpeg",
+      "version": "n9.0.2",
+      "label": "n9.0.2+release/9.0",
+      "commit": "c179411bbb2864cc71323d3055acda25d5c2aace",
+      "commit_variable": "FFMPEG_COMMIT",
+      "source_file": "build.sh",
+      "variable": "FFMPEG_VERSION",
+      "git": "https://github.com/FFmpeg/FFmpeg.git",
+      "tag_filter": "^n[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "line": "minor",
+      "not_built": [
+        {
+          "component": "sftp protocol (libssh)",
+          "why": "libssh is not linked and --disable-autodetect is set",
+          "paths": "^libavformat/(libssh|sftp)[a-z_]*\\.[ch]$"
+        },
+        {
+          "component": "dash demuxer (libxml2)",
+          "why": "the dash demuxer needs libxml2, which is not linked",
+          "paths": "^libavformat/dashdec\\.[ch]$"
+        },
+        {
+          "component": "rtmp protocols",
+          "why": "only file, pipe, data, http(s), tcp, tls, crypto, httpproxy, udp, rtp are enabled",
+          "paths": "^libavformat/rtmp[a-z_]*\\.[ch]$"
+        },
+        {
+          "component": "ffmpeg/ffplay/ffprobe programs",
+          "why": "--disable-programs",
+          "paths": "^fftools/"
+        }
+      ],
+      "ignored_vulns": {
+        "CVE-2026-107676": {
+          "reason": "fixed by hdr10plus-t35-saturation.patch and hdr10plus-t35-count-bounds.patch",
+          "patches": [
+            "patches/hdr10plus-t35-saturation.patch",
+            "patches/hdr10plus-t35-count-bounds.patch"
+          ]
+        },
+        "CVE-2026-107677": {
+          "reason": "libavutil part (av_strireplace with an empty search string) fixed by avstring-strireplace-empty.patch",
+          "patches": [
+            "patches/avstring-strireplace-empty.patch"
+          ]
+        },
+        "CVE-2026-107678": {
+          "reason": "fixed by encryption-init-info-free.patch",
+          "patches": [
+            "patches/encryption-init-info-free.patch"
+          ]
+        },
+        "CVE-2026-107696": {
+          "reason": "fixed by rtsp-redirect-limit.patch",
+          "patches": [
+            "patches/rtsp-redirect-limit.patch"
+          ]
+        },
+        "CVE-2026-125072": {
+          "reason": "fixed by mpegaudio-bitreader-size.patch",
+          "patches": [
+            "patches/mpegaudio-bitreader-size.patch"
+          ]
+        },
+        "CVE-2026-125180": {
+          "reason": "fixed by exif-ifd-bounds.patch",
+          "patches": [
+            "patches/exif-ifd-bounds.patch"
+          ]
+        },
+        "CVE-2026-125182": {
+          "reason": "fixed by cook-js-subband-start.patch",
+          "patches": [
+            "patches/cook-js-subband-start.patch"
+          ]
+        },
+        "CVE-2026-125183": {
+          "reason": "fixed by hevc-pps-3d-depth-lut.patch",
+          "patches": [
+            "patches/hevc-pps-3d-depth-lut.patch"
+          ]
+        },
+        "CVE-2026-125185": {
+          "reason": "fixed by aom-film-grain-scaling-points.patch",
+          "patches": [
+            "patches/aom-film-grain-scaling-points.patch"
+          ]
+        },
+        "CVE-2026-125199": {
+          "reason": "fixed by vc1dec-slice-buffer-leak.patch",
+          "patches": [
+            "patches/vc1dec-slice-buffer-leak.patch"
+          ]
+        },
+        "CVE-2026-125204": {
+          "reason": "fixed by encode-frame-size-match.patch",
+          "patches": [
+            "patches/encode-frame-size-match.patch"
+          ]
+        },
+        "CVE-2026-125212": {
+          "reason": "fixed by encode-frame-size-match.patch",
+          "patches": [
+            "patches/encode-frame-size-match.patch"
+          ]
+        },
+        "CVE-2026-125214": {
+          "reason": "fixed by pcm-bluray-whole-samples.patch",
+          "patches": [
+            "patches/pcm-bluray-whole-samples.patch"
+          ]
+        },
+        "CVE-2026-125218": {
+          "reason": "fixed by encode-frame-size-match.patch",
+          "patches": [
+            "patches/encode-frame-size-match.patch"
+          ]
+        },
+        "CVE-2026-125221": {
+          "reason": "fixed by flac-parser-score-iterative.patch",
+          "patches": [
+            "patches/flac-parser-score-iterative.patch"
+          ]
+        },
+        "CVE-2026-125224": {
+          "reason": "fixed by vorbis-parser-extradata-once.patch",
+          "patches": [
+            "patches/vorbis-parser-extradata-once.patch"
+          ]
+        },
+        "CVE-2026-125225": {
+          "reason": "fixed by aac-adtstoasc-pce-bitreader.patch",
+          "patches": [
+            "patches/aac-adtstoasc-pce-bitreader.patch"
+          ]
+        },
+        "CVE-2026-125235": {
+          "reason": "fixed by encode-frame-size-match.patch",
+          "patches": [
+            "patches/encode-frame-size-match.patch"
+          ]
+        },
+        "CVE-2026-125253": {
+          "reason": "fixed by cbs-vp9-superframe-size.patch",
+          "patches": [
+            "patches/cbs-vp9-superframe-size.patch"
+          ]
+        },
+        "CVE-2026-125260": {
+          "reason": "fixed by encode-frame-size-match.patch",
+          "patches": [
+            "patches/encode-frame-size-match.patch"
+          ]
+        }
+      },
+      "not_built_vulns": {
+        "CVE-2026-107675": "sftp protocol needs libssh: build.sh passes --disable-autodetect (libssh is never linked) and --disable-protocols without --enable-protocol=sftp",
+        "CVE-2026-107677": "dash demuxer part: build.sh passes --disable-demuxers and does not enable the dash demuxer, which needs libxml2 (--disable-autodetect)",
+        "CVE-2026-125064": "fix (FFmpeg master ec887b13a8) only touches libavcodec/g726.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125065": "fix (FFmpeg master 9691e4fde6) only touches libavcodec/eatgv.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125066": "fix (FFmpeg master d40c1b1281) only touches libavcodec/cljrdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125067": "fix (FFmpeg master 1206df65e5) only touches libavcodec/vble.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125068": "fix (FFmpeg master 5195d6f972) only touches libavcodec/bink.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125069": "fix (FFmpeg master 26b4c37526) only touches libavcodec/motionpixels.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125070": "fix (FFmpeg master 5d7b743bdf) only touches libavcodec/eatqi.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125071": "fix (FFmpeg master 839c93f261) only touches libavcodec/jvdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125073": "fix (FFmpeg master 9b26bb4c9a) only touches libavcodec/imc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125095": "fix (FFmpeg master ac0106851a) only touches libavcodec/c93.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125096": "fix (FFmpeg master c896bbb245) only touches libavcodec/tiertexseqv.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125097": "fix (FFmpeg master 01a395b935) only touches libavcodec/rawdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125098": "fix (FFmpeg master 92b318e0b3) only touches libavcodec/webp.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125099": "fix (FFmpeg master e578999fa3) only touches libavcodec/gemdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125100": "fix (FFmpeg master c05d46ea29) only touches libavcodec/exr.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125101": "fix (FFmpeg master 50865f20b1) only touches libavcodec/vmnc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125102": "fix (FFmpeg master 01e1bb1261) only touches libavcodec/takdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125103": "fix (FFmpeg master db98784a72) only touches libavcodec/mlz.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125104": "fix (FFmpeg master 968e9e948e) only touches libavcodec/apedec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125170": "fix (FFmpeg master f8f84348df) only touches libavcodec/targa.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125171": "fix (FFmpeg master 5d59b7c45d) only touches libavcodec/mpc7.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125175": "fix (FFmpeg master 50d206a75b, cfb40c9129) only touches libavcodec/flashsv.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125176": "fix (FFmpeg master 16d0f7f408) only touches libavcodec/flashsv.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125177": "fix (FFmpeg master 263a85e2a2) only touches libavcodec/mscc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125178": "fix (FFmpeg master 12c589a37d) only touches libavcodec/tdsc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125179": "fix (FFmpeg master f9df3577ac) only touches libavcodec/vqavideo.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125181": "fix (FFmpeg master c0d308a9a6, eb47d7bb6c, ee30fb98c0) only touches libavcodec/flicvideo.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125184": "fix (FFmpeg master e58c4eb98f) only touches libavcodec/cscd.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125186": "fix (FFmpeg master d8013c0617) only touches libavcodec/bsf/dts2pts.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125187": "fix (FFmpeg master 29a629e788) only touches libavcodec/ttaenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125188": "fix (FFmpeg master ad2287d6d2, d74f5e0559) only touches libavcodec/proresenc_anatoliy.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125189": "fix (FFmpeg master 0747459f0c) only touches libavcodec/bsf/lcevc_metadata.c, libavcodec/cbs_lcevc.c, libavcodec/cbs_lcevc.h, libavcodec/lcevcdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125190": "fix (FFmpeg master 3a5eb948e7) only touches libavcodec/mvcdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125191": "fix (FFmpeg master 4d2d58efa9) only touches libavcodec/v4l2_buffers.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125192": "fix (FFmpeg master a6e5d5ff99) only touches libavcodec/dxa.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125193": "fix (FFmpeg master f1205ee018) only touches libavcodec/bitpacked_dec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125194": "fix (FFmpeg master cfe6a6cd7d) only touches libavcodec/pcm-dvdenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125195": "fix (FFmpeg master fb13409aaf) only touches libavcodec/adpcmenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125197": "fix (FFmpeg master 12e5d4ec98) only touches libavcodec/lcldec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125198": "fix (FFmpeg master e5d295b3cd) only touches libavcodec/mediacodec_wrapper.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125200": "fix (FFmpeg master 8dc4af2bbb) only touches libavcodec/libx265.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125202": "HEVC VAAPI hwaccel: build.sh passes --disable-vaapi",
+        "CVE-2026-125205": "fix (FFmpeg master c90bbc2036) only touches libavcodec/bsf/av1_frame_merge.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125206": "fix (FFmpeg master 9edd06f861) only touches libavcodec/proresenc_kostya.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125207": "fix (FFmpeg master 6ecaddb9c1) only touches libavcodec/interplayacm.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125208": "fix (FFmpeg master b8f159858e) only touches libavcodec/v4l2_buffers.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125210": "fix (FFmpeg master 7c06aea6f0) only touches libavcodec/libaribcaption.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125211": "fix (FFmpeg master 4ec127c826) only touches libavcodec/libaribcaption.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125213": "fix (FFmpeg master aa4b80b54e) only touches libavcodec/psd.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125215": "fix (FFmpeg master 11c4b42018, 971ea9d6a2) only touches libavcodec/dovi_rpuenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125216": "fix (FFmpeg master aa5fd7d287) only touches libavcodec/dpxenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125217": "fix (FFmpeg master f71410e028) only touches libavcodec/roqaudioenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125219": "HEVC VDPAU hwaccel: build.sh passes --disable-vdpau",
+        "CVE-2026-125220": "fix (FFmpeg master db77b0b831) only touches libavcodec/mimic.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125222": "fix (FFmpeg master 62c308e041) only touches libavcodec/hapdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125226": "fix (FFmpeg master 1f4b2e22cf) only touches libavformat/sbgdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125227": "fix (FFmpeg master b89ce54d93) only touches libavcodec/cbs_jpeg.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125229": "fix (FFmpeg master 45f98d0819) only touches libavcodec/huffyuvenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125230": "fix (FFmpeg master 11052ca4b0) only touches libavcodec/bsf/pcm_rechunk.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125231": "fix (FFmpeg master 515dcad73d) only touches libavcodec/adxdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125232": "fix (FFmpeg master 16d19ccbce, bf0a2e4680) only touches libavcodec/motion_est.c, libavcodec/mpegvideo_enc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125233": "fix (FFmpeg master 7f80b2ad83) only touches libavcodec/dvbsubenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125234": "fix (FFmpeg master e621da8ecd) only touches libavcodec/wavpackenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125236": "fix (FFmpeg master a13e27336a) only touches libavcodec/vvc/refs.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125237": "DPX Vulkan hwaccel: Vulkan is never enabled (--disable-autodetect, no --enable-vulkan)",
+        "CVE-2026-125239": "HEVC DXVA hwaccel: build.sh passes --disable-dxva2 and --disable-d3d11va",
+        "CVE-2026-125240": "fix (FFmpeg master 3aa561b0dd) only touches libavcodec/libsvtjpegxsdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125241": "fix (FFmpeg master 27f612b306) only touches libavcodec/flicvideo.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125242": "VDPAU hwaccel buffer leak: the fix (master eac2bedcf6, 2c6cd80988) changes the VDPAU hwaccels plus a decode.c path only a hwaccel with free_frame_priv and no frames context takes; build.sh passes --disable-vdpau",
+        "CVE-2026-125243": "fix (FFmpeg master 60bc31fcf6) only touches libavcodec/jpeglsdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125245": "MJPEG hwaccel path of mjpegdec.c (fix master 50e9ef29be): only runs when an MJPEG hwaccel is active, and the only MJPEG hwaccels (nvdec, vaapi) are not built",
+        "CVE-2026-125246": "fix (FFmpeg master ee457fdcdb) only touches libavcodec/cbs_jpeg.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125247": "fix (FFmpeg master a9c070e52f) only touches libavcodec/tiff.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125248": "FFV1 Vulkan encoder: Vulkan is never enabled and --disable-encoders leaves no FFV1 encoder",
+        "CVE-2026-125249": "Vulkan slice buffers: Vulkan is never enabled (--disable-autodetect, no --enable-vulkan)",
+        "CVE-2026-125250": "fix (FFmpeg master 26c2980980) only touches libavcodec/gif.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125251": "fix (FFmpeg master 053660fdb0) only touches libavcodec/vvc/refs.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125252": "VAAPI picture buffer leak: the fix (master 4221a63ce8, 838c660bb3) destroys VAAPI buffers and reorders the hwaccel private data release in the decoders for it; build.sh passes --disable-vaapi",
+        "CVE-2026-125254": "fix (FFmpeg master 8732d7585c) only touches libavcodec/vvc/refs.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125255": "MJPEG hwaccel path of mjpegdec.c (fix master f58a677654): only runs when an MJPEG hwaccel is active, and the only MJPEG hwaccels (nvdec, vaapi) are not built",
+        "CVE-2026-125257": "fix (FFmpeg master 733bec3e19) only touches libavcodec/nellymoserenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125258": "fix (FFmpeg master ab28d57ba2) only touches libavcodec/dovi_rpuenc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125259": "fix (FFmpeg master 439b452f9f) only touches libavcodec/proresenc_kostya_common.c, libavcodec/proresenc_kostya_common.h, libavcodec/proresenc_kostya.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125261": "fix (FFmpeg master c6e5b6105a) only touches libavcodec/sgienc.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125262": "fix (FFmpeg master fd6dfa613a) only touches configure, libavcodec/lcevcdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125263": "LCEVC enhancement in decode.c (fix master 60b286521b): the code is under CONFIG_LIBLCEVC_DEC, which is 0 (liblcevc_dec is never linked)",
+        "CVE-2026-125264": "fix (FFmpeg master bc896c613e) only touches libavcodec/jpegxl_parser.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125265": "fix (FFmpeg master 03cd785195) only touches libavcodec/nvdec.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125268": "fix (FFmpeg master 0bfa350291) only touches libavcodec/cfhd.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125269": "fix (FFmpeg master 2c515eea07) only touches libavcodec/cbs_sei.c, which this build does not compile (no object file in any slice)",
+        "CVE-2026-125270": "fix (FFmpeg master b8f159858e) only touches libavcodec/v4l2_buffers.c, which this build does not compile (no object file in any slice)"
+      }
+    },
+    {
+      "name": "dav1d",
+      "version": "1.5.4",
+      "source_file": "build.sh",
+      "variable": "DAV1D_VERSION",
+      "git": "https://code.videolan.org/videolan/dav1d.git",
+      "tag_filter": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "any",
+      "not_built": [],
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "zimg",
+      "version": "release-3.0.6",
+      "source_file": "build.sh",
+      "variable": "ZIMG_VERSION",
+      "git": "https://github.com/sekrit-twc/zimg.git",
+      "tag_filter": "^release-[0-9]+\\.[0-9]+(\\.[0-9]+)*$",
+      "line": "any",
+      "not_built": [],
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "libzvbi",
+      "version": "v0.2.46",
+      "source_file": "build.sh",
+      "variable": "ZVBI_VERSION",
+      "git": "https://github.com/zapping-vbi/zvbi.git",
+      "tag_filter": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "any",
+      "not_built": [],
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "OpenSSL",
+      "version": "openssl-3.5.9",
+      "source_file": "build.sh",
+      "variable": "OPENSSL_VERSION",
+      "git": "https://github.com/openssl/openssl.git",
+      "tag_filter": "^openssl-[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "minor",
+      "not_built": [],
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "libass",
+      "version": "0.17.5",
+      "source_file": "build-libass.sh",
+      "variable": "LIBASS_VERSION",
+      "git": "https://github.com/libass/libass.git",
+      "tag_filter": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "any",
+      "not_built": [
+        {
+          "component": "fontconfig font provider",
+          "why": "fonts come from the CoreText provider",
+          "paths": "^libass/ass_fontconfig\\.[ch]$"
+        }
+      ],
+      "ignored_vulns": {
+        "CVE-2026-95127": {
+          "reason": "fixed by libass-render-extreme-values.patch",
+          "patches": [
+            "patches/libass-render-extreme-values.patch"
+          ]
+        }
+      },
+      "not_built_vulns": {}
+    },
+    {
+      "name": "FreeType",
+      "version": "2.15.0",
+      "source_file": "build-libass.sh",
+      "variable": "FREETYPE_VERSION",
+      "git": "https://github.com/freetype/freetype.git",
+      "tag_filter": "^VER-[0-9]+-[0-9]+-[0-9]+$",
+      "line": "any",
+      "not_built": [],
+      "tag_template": "VER-{v_dashed}",
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "FriBidi",
+      "version": "1.0.18",
+      "source_file": "build-libass.sh",
+      "variable": "FRIBIDI_VERSION",
+      "git": "https://github.com/fribidi/fribidi.git",
+      "tag_filter": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "any",
+      "not_built": [],
+      "tag_template": "v{v}",
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    },
+    {
+      "name": "HarfBuzz",
+      "version": "15.1.0",
+      "source_file": "build-libass.sh",
+      "variable": "HARFBUZZ_VERSION",
+      "git": "https://github.com/harfbuzz/harfbuzz.git",
+      "tag_filter": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "line": "any",
+      "not_built": [],
+      "ignored_vulns": {},
+      "not_built_vulns": {}
+    }
+  ]
+}

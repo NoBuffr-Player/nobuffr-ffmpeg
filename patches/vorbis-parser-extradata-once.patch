@@ -1,0 +1,20 @@
+vorbis_parser: parse the extradata only once (CVE-2026-125224)
+
+The parser retried invalid extradata on every packet, and parsing large invalid
+extradata each time made demuxing a crafted file CPU-bound.
+
+Backport of FFmpeg master 90f5e61a1da2dcc0050169af8ca593530f26071b (PR 25694, merged 2026-11-05), not in n9.0.2.
+Only the hunk line numbers differ from the master commit.
+
+diff --git a/libavcodec/vorbis_parser.c b/libavcodec/vorbis_parser.c
+--- a/libavcodec/vorbis_parser.c
++++ b/libavcodec/vorbis_parser.c
+@@ -309,7 +309,7 @@ static int vorbis_parse(AVCodecParserContext *s1, AVCodecContext *avctx,
+     AVVorbisParseContext *s = s1->priv_data;
+     int duration;
+ 
+-    if (!s->valid_extradata && avctx->extradata && avctx->extradata_size) {
++    if (!s->extradata_parsed && avctx->extradata && avctx->extradata_size) {
+         ff_vorbis_parse_init(s, avctx->extradata, avctx->extradata_size);
+     }
+     if (!s->valid_extradata)

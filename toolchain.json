@@ -1,0 +1,27 @@
+{
+  "comment": "Tools build.sh, build-libass.sh and cve-check.sh need, as installed on the build machine. Scripts/verify-toolchain.sh checks them; a null version only checks presence. Change a version here when the toolchain is upgraded on purpose.",
+  "tools": [
+    { "name": "xcodebuild", "command": "xcodebuild -version", "version": "27.2" },
+    { "name": "meson", "command": "meson --version", "version": "1.12.1" },
+    { "name": "ninja", "command": "ninja --version", "version": "1.13.2" },
+    { "name": "nasm", "command": "nasm --version", "version": "3.02" },
+    { "name": "pkg-config", "command": "pkg-config --version", "version": "3.0.7" },
+    { "name": "autoconf", "command": "autoconf --version", "version": "2.73" },
+    { "name": "automake", "command": "automake --version", "version": "1.19" },
+    { "name": "glibtoolize", "command": "glibtoolize --version", "version": "2.6.2" },
+    { "name": "jq", "command": "jq --version", "version": "1.8.2" },
+    { "name": "python3", "command": "python3 --version", "version": "3.14.7" },
+    { "name": "perl", "command": null, "version": null },
+    { "name": "curl", "command": null, "version": null },
+    { "name": "git", "command": null, "version": null },
+    { "name": "patch", "command": null, "version": null },
+    { "name": "shasum", "command": null, "version": null },
+    { "name": "ditto", "command": null, "version": null },
+    { "name": "gh", "command": null, "version": null }
+  ],
+  "files": [
+    "/opt/homebrew/opt/libtool/libexec/gnubin/libtoolize",
+    "/opt/homebrew/opt/gettext/bin/autopoint"
+  ],
+  "sdks": ["xros", "xrsimulator"]
+}

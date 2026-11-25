@@ -1,0 +1,204 @@
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index 0e1a1ba..274410d 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -99,8 +99,22 @@ enum PlaylistType {
+  * it has an open AVIOContext too, and potentially an AVPacket
+  * containing the next packet from this stream.
+  */
++#define VOD_REFRESH_MAX_PER_WINDOW 3
++#define VOD_REFRESH_WINDOW_US      (60 * 1000000LL)
++
+ struct playlist {
+     char url[MAX_URL_SIZE];
++    /* The URL the demuxer was opened with, before any redirect, when it is
++     * the media playlist itself; empty otherwise (url is then already the
++     * unredirected URL). Used to fetch a VOD playlist afresh. */
++    char orig_url[MAX_URL_SIZE];
++    /* Start times of the last VOD_REFRESH_MAX_PER_WINDOW refreshes. */
++    int64_t vod_refresh_time[VOD_REFRESH_MAX_PER_WINDOW];
++    int n_vod_refresh;
++    /* Set while a VOD refresh parses the playlist: a failure then keeps the
++     * previous segment list, and a result that is not a finished playlist
++     * with segments counts as a failure. */
++    int vod_refreshing;
+     FFIOContext pb;
+     uint8_t* read_buffer;
+     AVIOContext *input;
+@@ -244,6 +258,7 @@ typedef struct HLSContext {
+     int http_multiple;
+     int http_seekable;
+     int seg_max_retry;
++    int vod_refresh_on_segment_error;
+     AVIOContext *playlist_pb;
+     HLSCryptoContext  crypto_ctx;
+ } HLSContext;
+@@ -835,6 +850,7 @@ static int parse_playlist(HLSContext *c, const char *url,
+     struct segment **prev_segments = NULL;
+     int prev_n_segments = 0;
+     int64_t prev_start_seq_no = -1;
++    enum PlaylistType prev_type = PLS_TYPE_UNSPECIFIED;
+ 
+     if (is_http && !in && c->http_persistent && c->playlist_pb) {
+         in = c->playlist_pb;
+@@ -879,6 +895,7 @@ static int parse_playlist(HLSContext *c, const char *url,
+ 
+     if (pls) {
+         prev_start_seq_no = pls->start_seq_no;
++        prev_type = pls->type;
+         prev_segments = pls->segments;
+         prev_n_segments = pls->n_segments;
+         pls->segments = NULL;
+@@ -1125,6 +1142,10 @@ static int parse_playlist(HLSContext *c, const char *url,
+             }
+         }
+     }
++    if (pls && pls->vod_refreshing && (!pls->finished || !pls->n_segments)) {
++        ret = AVERROR_INVALIDDATA;
++        goto fail;
++    }
+     if (prev_segments) {
+         if (pls->start_seq_no > prev_start_seq_no && c->first_timestamp != AV_NOPTS_VALUE &&
+             c->first_timestamp_pls == pls) {
+@@ -1149,6 +1170,14 @@ static int parse_playlist(HLSContext *c, const char *url,
+         pls->last_load_time = av_gettime_relative();
+ 
+ fail:
++    if (ret < 0 && pls && pls->vod_refreshing && prev_segments) {
++        free_segment_list(pls);
++        pls->segments    = prev_segments;
++        pls->n_segments  = prev_n_segments;
++        pls->start_seq_no = prev_start_seq_no;
++        pls->type        = prev_type;
++        pls->finished    = 1;
++    }
+     av_free(new_url);
+     if (close_in)
+         ff_format_io_close(c->ctx, &in);
+@@ -1744,6 +1773,71 @@ reload:
+     return ret;
+ }
+ 
++/*
++ * Some providers serve a finished (VOD) playlist whose segment URLs carry a
++ * token that expires some time after the playlist was fetched; the segments
++ * then answer 4xx while a new request to the playlist URL yields fresh ones.
++ * On such an error, load the playlist again from the URL it was opened with,
++ * so that redirects and token issuing happen again, and keep the position.
++ * Returns 1 if the playlist was replaced and the segment should be retried,
++ * 0 if not (the caller then falls back to skipping the segment).
++ */
++static int refresh_vod_playlist(HLSContext *c, struct playlist *v, int err)
++{
++    int64_t now, elapsed = 0, pos = 0;
++    int64_t old_start = v->start_seq_no;
++    int old_n = v->n_segments;
++    int64_t n_before = av_clip64(v->cur_seq_no - v->start_seq_no, 0, v->n_segments);
++    int ret, i;
++
++    if (!c->vod_refresh_on_segment_error || !v->finished || v->is_subtitle)
++        return 0;
++    switch (err) {
++    case AVERROR_HTTP_UNAUTHORIZED:
++    case AVERROR_HTTP_FORBIDDEN:
++    case AVERROR_HTTP_NOT_FOUND:
++    case AVERROR_HTTP_OTHER_4XX: /* includes 410 Gone, which http.c does not
++                                  * tell apart; 400 and 429 have own codes */
++        break;
++    default:
++        return 0;
++    }
++
++    now = av_gettime_relative();
++    if (v->n_vod_refresh >= VOD_REFRESH_MAX_PER_WINDOW &&
++        now - v->vod_refresh_time[v->n_vod_refresh % VOD_REFRESH_MAX_PER_WINDOW] < VOD_REFRESH_WINDOW_US) {
++        av_log(v->parent, AV_LOG_WARNING,
++               "Playlist %d: too many refreshes, not refreshing again\n", v->index);
++        return 0;
++    }
++    v->vod_refresh_time[v->n_vod_refresh % VOD_REFRESH_MAX_PER_WINDOW] = now;
++    v->n_vod_refresh++;
++
++    for (i = 0; i < n_before; i++)
++        elapsed += v->segments[i]->duration;
++
++    av_log(v->parent, AV_LOG_WARNING,
++           "Segment %"PRId64" of playlist %d failed (%s), reloading the VOD playlist\n",
++           v->cur_seq_no, v->index, av_err2str(err));
++    v->vod_refreshing = 1;
++    ret = parse_playlist(c, v->orig_url[0] ? v->orig_url : v->url, v, NULL);
++    v->vod_refreshing = 0;
++    if (ret < 0) {
++        av_log(v->parent, AV_LOG_WARNING, "Failed to reload VOD playlist %d: %s\n",
++               v->index, av_err2str(ret));
++        return 0;
++    }
++
++    /* Keep the position: by sequence number when the list looks the same,
++     * else by the playback time covered by the segments already consumed. */
++    if (v->start_seq_no != old_start || v->n_segments != old_n) {
++        for (i = 0; i < v->n_segments && pos + v->segments[i]->duration <= elapsed; i++)
++            pos += v->segments[i]->duration;
++        v->cur_seq_no = v->start_seq_no + i;
++    }
++    return v->finished;
++}
++
+ static int read_data_continuous(void *opaque, uint8_t *buf, int buf_size)
+ {
+     struct playlist *v = opaque;
+@@ -1751,6 +1845,7 @@ static int read_data_continuous(void *opaque, uint8_t *buf, int buf_size)
+     int ret;
+     int just_opened = 0;
+     int segment_retries = 0;
++    int vod_refreshed = 0;
+     struct segment *seg;
+ 
+     if (c->http_persistent && v->input_read_done) {
+@@ -1785,6 +1880,11 @@ restart:
+         if (ret < 0) {
+             if (ff_check_interrupt(c->interrupt_callback))
+                 return AVERROR_EXIT;
++            if (!vod_refreshed) {
++                vod_refreshed = 1;
++                if (refresh_vod_playlist(c, v, ret))
++                    goto restart;
++            }
+             av_log(v->parent, AV_LOG_WARNING, "Failed to open segment %"PRId64" of playlist %d\n",
+                    v->cur_seq_no,
+                    v->index);
+@@ -1794,12 +1894,14 @@ restart:
+                        v->index);
+                 v->cur_seq_no++;
+                 segment_retries = 0;
++                vod_refreshed = 0;
+             } else {
+                 segment_retries++;
+             }
+             goto restart;
+         }
+         segment_retries = 0;
++        vod_refreshed = 0;
+         just_opened = 1;
+         v->input_read_done = 0;
+     }
+@@ -2304,6 +2406,10 @@ static int hls_read_header(AVFormatContext *s)
+         av_log(s, AV_LOG_WARNING, "Empty playlist\n");
+         return AVERROR_EOF;
+     }
++    /* A media playlist opened directly is registered under the redirected
++     * URL; remember the one we were given. */
++    if (c->n_playlists == 1 && c->playlists[0]->n_segments > 0)
++        av_strlcpy(c->playlists[0]->orig_url, s->url, sizeof(c->playlists[0]->orig_url));
+     /* If the playlist only contained playlists (Master Playlist),
+      * parse each individual playlist. */
+     if (c->n_playlists > 1 || c->playlists[0]->n_segments == 0) {
+@@ -3065,6 +3171,8 @@ static const AVOption hls_options[] = {
+         OFFSET(seg_format_opts), AV_OPT_TYPE_DICT, {.str = NULL}, 0, 0, FLAGS},
+     {"seg_max_retry", "Maximum number of times to reload a segment on error.",
+      OFFSET(seg_max_retry), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS},
++    {"vod_refresh_on_segment_error", "Reload a finished playlist from its original URL when a segment answers 401, 403, 404 or another 4xx except 400 and 429 (410 included)",
++     OFFSET(vod_refresh_on_segment_error), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, FLAGS},
+     {NULL}
+ };
+ 

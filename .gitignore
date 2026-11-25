@@ -1,0 +1,12 @@
+.DS_Store
+/.build
+/build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/
+.netrc
+
+# Binaries are release assets; build.sh and build-libass.sh write them here for local use
+/Sources/*.xcframework
+/dist/
