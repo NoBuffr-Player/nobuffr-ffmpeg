@@ -4,6 +4,10 @@ The FFmpeg build used by NoBuffr on iOS, tvOS and macOS. It is FFmpeg plus the l
 
 Release version: `9.0.2-nobuffr.1` (FFmpeg n9.0.2 plus our patch set, revision 1).
 
+## Android
+
+The Android app uses a separate, unmodified LGPL FFmpeg 6.0 audio decoder build. Its sources and build script are in [`android/`](android/README.md), released as `6.0-nobuffr-android.1`.
+
 ## Upstream versions
 
 | Component | Version | Source |
